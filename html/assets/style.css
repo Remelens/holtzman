@@ -1,0 +1,29 @@
+html{
+    height: 100%;
+}
+body{
+    text-align:center;
+    margin:0;
+    height:100%;
+}
+mdui-layout{
+    height:100%;
+}
+mdui-top-app-bar-title a{
+    color: inherit;
+    text-decoration: none;
+}
+mdui-card{
+    padding:1em;
+    min-width:400px;
+}
+mdui-divider{
+    margin:10px 0;
+}
+#file{
+    font-size:100%;
+    text-align: center;
+}
+input[type="file"]::file-selector-button{
+    display:none;
+}

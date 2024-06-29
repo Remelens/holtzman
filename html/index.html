@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html class="mdui-theme-dark">
+    <head>
+        <title>Holtzman</title>
+        <link rel="stylesheet" href="./assets/mdui.css">
+        <link rel="stylesheet" href="./assets/style.css">
+        <link href="./assets/MaterialIcons.css" rel="stylesheet">
+        <script src="./assets/mdui.global.js"></script>
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, shrink-to-fit=no"/>
+        <meta name="renderer" content="webkit"/>
+    </head>
+    <body>
+        <mdui-layout>
+            <mdui-top-app-bar variant="small">
+                <mdui-button-icon type="button" icon="menu" id="btn-sidebar"></mdui-button-icon>
+                <mdui-top-app-bar-title><a href="/">Holtzman</a></mdui-top-app-bar-title>
+                <div style="flex-grow: 1"></div>
+                <mdui-button-icon type="button" icon="github" id="btn-ms"></mdui-button-icon>
+            </mdui-top-app-bar>
+            <mdui-navigation-drawer close-on-overlay-click id="sidebar">
+                <mdui-list-item rounded href="/" active>Upload File</mdui-list-item>
+                <mdui-list-item rounded href="/file">All Files</mdui-list-item>
+            </mdui-navigation-drawer>
+            <mdui-layout-main>
+                <mdui-card>
+                    <h3>Upload File</h3>
+                    <form id="upload" action="/upload" method="post" enctype="multipart/form-data">
+                        <mdui-button id="selectfile">Select File</mdui-button><br>
+                        <input full-width type="file" name="file" id="file" required><br>
+                        <mdui-divider></mdui-divider>
+                        <mdui-button type="submit">Submit</mdui-button>
+                    </form>
+                </mdui-card>
+            </mdui-layout-main>
+            <mdui-bottom-app-bar>
+                Holtzman Server
+            </mdui-bottom-app-bar>
+        </mdui-layout>
+        <script src="./assets/script.js"></script>
+    </body>
+</html>
