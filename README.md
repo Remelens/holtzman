@@ -22,6 +22,6 @@ Execute the command on the root directory of the project
 ./server
 ```
 
-The server will listening at port 8000.
+The server will listening at port 8000 and you can view it at http://localhost:8000/
 
 If you want to change the port, edit the variable "PORT" in `server.cpp`, then recompile the proj.
