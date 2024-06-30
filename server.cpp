@@ -54,14 +54,13 @@ int main(){
     ecode_init();
     Server svr;
     if (!svr.set_mount_point("/file/","file")) {
-        cout << "The specified base directory 'file' doesn't exist...";
+        cout << "The specified base directory 'file' doesn't exist..."<<endl;
         return 1;
     }
     if (!svr.set_mount_point("/assets/","html/assets")) {
-        cout << "The specified base directory 'html/assets' doesn't exist...";
+        cout << "The specified base directory 'html/assets' doesn't exist..."<<endl;
         return 1;
     }
-    svr.set_file_extension_and_mimetype_mapping("", "text/plain;charset=utf-8");
     svr.Get("/", [](const Request &req, Response &res) {
         res.set_content(file_get_contents("html/index.html"), "text/html;charset=utf-8");
     });
