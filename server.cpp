@@ -1,10 +1,10 @@
-#include <httplib.h>
+#include "httplib.h"
 #include <filesystem>
 #include "error.hpp"
 using namespace std;
 namespace fs = std::filesystem;
 using namespace httplib;
-const string name="File Share Server";
+const string name="Holtzman";
 const int PORT=8000;
 string file_get_contents(string fn){
     ifstream fin (fn.c_str());

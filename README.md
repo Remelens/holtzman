@@ -5,12 +5,7 @@ Simple and minimal file share server on local area network
 
 ## Installation
 
-Make sure that you've installed [libcpp-httplib](https://github.com/yhirose/cpp-httplib). On a Debian/Ubuntu device, you can install this with the following command:
-```
-sudo apt install libcpp-httplib-dev
-```
-
-Then compile the project with:
+Compile the project with:
 
 ```
 make
