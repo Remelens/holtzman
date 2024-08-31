@@ -7,7 +7,7 @@ powered by [cpp-httplib](https://github.com/yhirose/cpp-httplib)
 
 ## Installation
 
-Compile the project with:
+Download [here](https://github.com/Remelens/holtzman/releases/) (not recommended) or compile the project with:
 
 ```
 make
