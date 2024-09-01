@@ -8,7 +8,7 @@
 #ifndef CPPHTTPLIB_HTTPLIB_H
 #define CPPHTTPLIB_HTTPLIB_H
 
-#define CPPHTTPLIB_VERSION "0.16.3"
+#define CPPHTTPLIB_VERSION "0.17.0"
 
 /*
  * Configuration
@@ -19,7 +19,7 @@
 #endif
 
 #ifndef CPPHTTPLIB_KEEPALIVE_MAX_COUNT
-#define CPPHTTPLIB_KEEPALIVE_MAX_COUNT 5
+#define CPPHTTPLIB_KEEPALIVE_MAX_COUNT 100
 #endif
 
 #ifndef CPPHTTPLIB_CONNECTION_TIMEOUT_SECOND
@@ -88,6 +88,10 @@
 
 #ifndef CPPHTTPLIB_TCP_NODELAY
 #define CPPHTTPLIB_TCP_NODELAY false
+#endif
+
+#ifndef CPPHTTPLIB_IPV6_V6ONLY
+#define CPPHTTPLIB_IPV6_V6ONLY false
 #endif
 
 #ifndef CPPHTTPLIB_RECV_BUFSIZ
@@ -565,8 +569,10 @@ struct Request {
 #endif
 
   bool has_header(const std::string &key) const;
-  std::string get_header_value(const std::string &key, size_t id = 0) const;
-  uint64_t get_header_value_u64(const std::string &key, size_t id = 0) const;
+  std::string get_header_value(const std::string &key, const char *def = "",
+                               size_t id = 0) const;
+  uint64_t get_header_value_u64(const std::string &key, uint64_t def = 0,
+                                size_t id = 0) const;
   size_t get_header_value_count(const std::string &key) const;
   void set_header(const std::string &key, const std::string &val);
 
@@ -597,8 +603,10 @@ struct Response {
   std::string location; // Redirect location
 
   bool has_header(const std::string &key) const;
-  std::string get_header_value(const std::string &key, size_t id = 0) const;
-  uint64_t get_header_value_u64(const std::string &key, size_t id = 0) const;
+  std::string get_header_value(const std::string &key, const char *def = "",
+                               size_t id = 0) const;
+  uint64_t get_header_value_u64(const std::string &key, uint64_t def = 0,
+                                size_t id = 0) const;
   size_t get_header_value_count(const std::string &key) const;
   void set_header(const std::string &key, const std::string &val);
 
@@ -896,6 +904,7 @@ public:
 
   Server &set_address_family(int family);
   Server &set_tcp_nodelay(bool on);
+  Server &set_ipv6_v6only(bool on);
   Server &set_socket_options(SocketOptions socket_options);
 
   Server &set_default_headers(Headers headers);
@@ -928,6 +937,7 @@ public:
   bool is_running() const;
   void wait_until_ready() const;
   void stop();
+  void decommission();
 
   std::function<TaskQueue *(void)> new_task_queue;
 
@@ -1002,7 +1012,7 @@ private:
   virtual bool process_and_close_socket(socket_t sock);
 
   std::atomic<bool> is_running_{false};
-  std::atomic<bool> done_{false};
+  std::atomic<bool> is_decommisioned{false};
 
   struct MountPointEntry {
     std::string mount_point;
@@ -1035,6 +1045,7 @@ private:
 
   int address_family_ = AF_UNSPEC;
   bool tcp_nodelay_ = CPPHTTPLIB_TCP_NODELAY;
+  bool ipv6_v6only_ = CPPHTTPLIB_IPV6_V6ONLY;
   SocketOptions socket_options_ = default_socket_options;
 
   Headers default_headers_;
@@ -1091,9 +1102,10 @@ public:
   // Request Headers
   bool has_request_header(const std::string &key) const;
   std::string get_request_header_value(const std::string &key,
+                                       const char *def = "",
                                        size_t id = 0) const;
   uint64_t get_request_header_value_u64(const std::string &key,
-                                        size_t id = 0) const;
+                                        uint64_t def = 0, size_t id = 0) const;
   size_t get_request_header_value_count(const std::string &key) const;
 
 private:
@@ -1316,6 +1328,7 @@ public:
 
   void set_address_family(int family);
   void set_tcp_nodelay(bool on);
+  void set_ipv6_v6only(bool on);
   void set_socket_options(SocketOptions socket_options);
 
   void set_connection_timeout(time_t sec, time_t usec = 0);
@@ -1453,6 +1466,7 @@ protected:
 
   int address_family_ = AF_UNSPEC;
   bool tcp_nodelay_ = CPPHTTPLIB_TCP_NODELAY;
+  bool ipv6_v6only_ = CPPHTTPLIB_IPV6_V6ONLY;
   SocketOptions socket_options_ = nullptr;
 
   bool compress_ = false;
@@ -1914,8 +1928,8 @@ inline void duration_to_sec_and_usec(const T &duration, U callback) {
 }
 
 inline uint64_t get_header_value_u64(const Headers &headers,
-                                     const std::string &key, size_t id,
-                                     uint64_t def) {
+                                     const std::string &key, uint64_t def,
+                                     size_t id) {
   auto rng = headers.equal_range(key);
   auto it = rng.first;
   std::advance(it, static_cast<ssize_t>(id));
@@ -1928,13 +1942,13 @@ inline uint64_t get_header_value_u64(const Headers &headers,
 } // namespace detail
 
 inline uint64_t Request::get_header_value_u64(const std::string &key,
-                                              size_t id) const {
-  return detail::get_header_value_u64(headers, key, id, 0);
+                                              uint64_t def, size_t id) const {
+  return detail::get_header_value_u64(headers, key, def, id);
 }
 
 inline uint64_t Response::get_header_value_u64(const std::string &key,
-                                               size_t id) const {
-  return detail::get_header_value_u64(headers, key, id, 0);
+                                               uint64_t def, size_t id) const {
+  return detail::get_header_value_u64(headers, key, def, id);
 }
 
 template <typename... Args>
@@ -1962,19 +1976,19 @@ inline ssize_t Stream::write_format(const char *fmt, const Args &...args) {
 }
 
 inline void default_socket_options(socket_t sock) {
-  int yes = 1;
+  int opt = 1;
 #ifdef _WIN32
   setsockopt(sock, SOL_SOCKET, SO_REUSEADDR,
-             reinterpret_cast<const char *>(&yes), sizeof(yes));
+             reinterpret_cast<const char *>(&opt), sizeof(opt));
   setsockopt(sock, SOL_SOCKET, SO_EXCLUSIVEADDRUSE,
-             reinterpret_cast<const char *>(&yes), sizeof(yes));
+             reinterpret_cast<const char *>(&opt), sizeof(opt));
 #else
 #ifdef SO_REUSEPORT
   setsockopt(sock, SOL_SOCKET, SO_REUSEPORT,
-             reinterpret_cast<const void *>(&yes), sizeof(yes));
+             reinterpret_cast<const void *>(&opt), sizeof(opt));
 #else
   setsockopt(sock, SOL_SOCKET, SO_REUSEADDR,
-             reinterpret_cast<const void *>(&yes), sizeof(yes));
+             reinterpret_cast<const void *>(&opt), sizeof(opt));
 #endif
 #endif
 }
@@ -2119,8 +2133,9 @@ inline std::ostream &operator<<(std::ostream &os, const Error &obj) {
 }
 
 inline uint64_t Result::get_request_header_value_u64(const std::string &key,
+                                                     uint64_t def,
                                                      size_t id) const {
-  return detail::get_header_value_u64(request_headers_, key, id, 0);
+  return detail::get_header_value_u64(request_headers_, key, def, id);
 }
 
 template <class Rep, class Period>
@@ -2212,15 +2227,18 @@ bool process_client_socket(socket_t sock, time_t read_timeout_sec,
                            time_t write_timeout_usec,
                            std::function<bool(Stream &)> callback);
 
-socket_t create_client_socket(
-    const std::string &host, const std::string &ip, int port,
-    int address_family, bool tcp_nodelay, SocketOptions socket_options,
-    time_t connection_timeout_sec, time_t connection_timeout_usec,
-    time_t read_timeout_sec, time_t read_timeout_usec, time_t write_timeout_sec,
-    time_t write_timeout_usec, const std::string &intf, Error &error);
+socket_t create_client_socket(const std::string &host, const std::string &ip,
+                              int port, int address_family, bool tcp_nodelay,
+                              bool ipv6_v6only, SocketOptions socket_options,
+                              time_t connection_timeout_sec,
+                              time_t connection_timeout_usec,
+                              time_t read_timeout_sec, time_t read_timeout_usec,
+                              time_t write_timeout_sec,
+                              time_t write_timeout_usec,
+                              const std::string &intf, Error &error);
 
 const char *get_header_value(const Headers &headers, const std::string &key,
-                             size_t id = 0, const char *def = nullptr);
+                             const char *def, size_t id);
 
 std::string params_to_query_str(const Params &params);
 
@@ -2945,7 +2963,10 @@ template <typename T> inline ssize_t handle_EINTR(T fn) {
   ssize_t res = 0;
   while (true) {
     res = fn();
-    if (res < 0 && errno == EINTR) { continue; }
+    if (res < 0 && errno == EINTR) {
+      std::this_thread::sleep_for(std::chrono::milliseconds{1});
+      continue;
+    }
     break;
   }
   return res;
@@ -3229,7 +3250,7 @@ inline int shutdown_socket(socket_t sock) {
 template <typename BindOrConnect>
 socket_t create_socket(const std::string &host, const std::string &ip, int port,
                        int address_family, int socket_flags, bool tcp_nodelay,
-                       SocketOptions socket_options,
+                       bool ipv6_v6only, SocketOptions socket_options,
                        BindOrConnect bind_or_connect) {
   // Get address info
   const char *node = nullptr;
@@ -3340,28 +3361,28 @@ socket_t create_socket(const std::string &host, const std::string &ip, int port,
 #endif
 
     if (tcp_nodelay) {
-      auto yes = 1;
+      auto opt = 1;
 #ifdef _WIN32
       setsockopt(sock, IPPROTO_TCP, TCP_NODELAY,
-                 reinterpret_cast<const char *>(&yes), sizeof(yes));
+                 reinterpret_cast<const char *>(&opt), sizeof(opt));
 #else
       setsockopt(sock, IPPROTO_TCP, TCP_NODELAY,
-                 reinterpret_cast<const void *>(&yes), sizeof(yes));
+                 reinterpret_cast<const void *>(&opt), sizeof(opt));
+#endif
+    }
+
+    if (rp->ai_family == AF_INET6) {
+      auto opt = ipv6_v6only ? 1 : 0;
+#ifdef _WIN32
+      setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY,
+                 reinterpret_cast<const char *>(&opt), sizeof(opt));
+#else
+      setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY,
+                 reinterpret_cast<const void *>(&opt), sizeof(opt));
 #endif
     }
 
     if (socket_options) { socket_options(sock); }
-
-    if (rp->ai_family == AF_INET6) {
-      auto no = 0;
-#ifdef _WIN32
-      setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY,
-                 reinterpret_cast<const char *>(&no), sizeof(no));
-#else
-      setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY,
-                 reinterpret_cast<const void *>(&no), sizeof(no));
-#endif
-    }
 
     // bind or connect
     auto quit = false;
@@ -3467,12 +3488,14 @@ inline std::string if2ip(int address_family, const std::string &ifn) {
 
 inline socket_t create_client_socket(
     const std::string &host, const std::string &ip, int port,
-    int address_family, bool tcp_nodelay, SocketOptions socket_options,
-    time_t connection_timeout_sec, time_t connection_timeout_usec,
-    time_t read_timeout_sec, time_t read_timeout_usec, time_t write_timeout_sec,
+    int address_family, bool tcp_nodelay, bool ipv6_v6only,
+    SocketOptions socket_options, time_t connection_timeout_sec,
+    time_t connection_timeout_usec, time_t read_timeout_sec,
+    time_t read_timeout_usec, time_t write_timeout_sec,
     time_t write_timeout_usec, const std::string &intf, Error &error) {
   auto sock = create_socket(
-      host, ip, port, address_family, 0, tcp_nodelay, std::move(socket_options),
+      host, ip, port, address_family, 0, tcp_nodelay, ipv6_v6only,
+      std::move(socket_options),
       [&](socket_t sock2, struct addrinfo &ai, bool &quit) -> bool {
         if (!intf.empty()) {
 #ifdef USE_IF2IP
@@ -3948,8 +3971,8 @@ inline bool has_header(const Headers &headers, const std::string &key) {
 }
 
 inline const char *get_header_value(const Headers &headers,
-                                    const std::string &key, size_t id,
-                                    const char *def) {
+                                    const std::string &key, const char *def,
+                                    size_t id) {
   auto rng = headers.equal_range(key);
   auto it = rng.first;
   std::advance(it, static_cast<ssize_t>(id));
@@ -4146,7 +4169,7 @@ inline bool read_content_chunked(Stream &strm, T &x,
 
 inline bool is_chunked_transfer_encoding(const Headers &headers) {
   return compare_case_ignore(
-      get_header_value(headers, "Transfer-Encoding", 0, ""), "chunked");
+      get_header_value(headers, "Transfer-Encoding", "", 0), "chunked");
 }
 
 template <typename T, typename U>
@@ -5489,8 +5512,8 @@ inline bool Request::has_header(const std::string &key) const {
 }
 
 inline std::string Request::get_header_value(const std::string &key,
-                                             size_t id) const {
-  return detail::get_header_value(headers, key, id, "");
+                                             const char *def, size_t id) const {
+  return detail::get_header_value(headers, key, def, id);
 }
 
 inline size_t Request::get_header_value_count(const std::string &key) const {
@@ -5554,8 +5577,9 @@ inline bool Response::has_header(const std::string &key) const {
 }
 
 inline std::string Response::get_header_value(const std::string &key,
+                                              const char *def,
                                               size_t id) const {
-  return detail::get_header_value(headers, key, id, "");
+  return detail::get_header_value(headers, key, def, id);
 }
 
 inline size_t Response::get_header_value_count(const std::string &key) const {
@@ -5640,8 +5664,9 @@ inline bool Result::has_request_header(const std::string &key) const {
 }
 
 inline std::string Result::get_request_header_value(const std::string &key,
+                                                    const char *def,
                                                     size_t id) const {
-  return detail::get_header_value(request_headers_, key, id, "");
+  return detail::get_header_value(request_headers_, key, def, id);
 }
 
 inline size_t
@@ -6049,6 +6074,11 @@ inline Server &Server::set_tcp_nodelay(bool on) {
   return *this;
 }
 
+inline Server &Server::set_ipv6_v6only(bool on) {
+  ipv6_v6only_ = on;
+  return *this;
+}
+
 inline Server &Server::set_socket_options(SocketOptions socket_options) {
   socket_options_ = std::move(socket_options);
   return *this;
@@ -6100,27 +6130,27 @@ inline Server &Server::set_payload_max_length(size_t length) {
 
 inline bool Server::bind_to_port(const std::string &host, int port,
                                  int socket_flags) {
-  return bind_internal(host, port, socket_flags) >= 0;
+  auto ret = bind_internal(host, port, socket_flags);
+  if (ret == -1) { is_decommisioned = true; }
+  return ret >= 0;
 }
 inline int Server::bind_to_any_port(const std::string &host, int socket_flags) {
-  return bind_internal(host, 0, socket_flags);
+  auto ret = bind_internal(host, 0, socket_flags);
+  if (ret == -1) { is_decommisioned = true; }
+  return ret;
 }
 
-inline bool Server::listen_after_bind() {
-  auto se = detail::scope_exit([&]() { done_ = true; });
-  return listen_internal();
-}
+inline bool Server::listen_after_bind() { return listen_internal(); }
 
 inline bool Server::listen(const std::string &host, int port,
                            int socket_flags) {
-  auto se = detail::scope_exit([&]() { done_ = true; });
   return bind_to_port(host, port, socket_flags) && listen_internal();
 }
 
 inline bool Server::is_running() const { return is_running_; }
 
 inline void Server::wait_until_ready() const {
-  while (!is_running() && !done_) {
+  while (!is_running_ && !is_decommisioned) {
     std::this_thread::sleep_for(std::chrono::milliseconds{1});
   }
 }
@@ -6132,7 +6162,10 @@ inline void Server::stop() {
     detail::shutdown_socket(sock);
     detail::close_socket(sock);
   }
+  is_decommisioned = false;
 }
+
+inline void Server::decommission() { is_decommisioned = true; }
 
 inline bool Server::parse_request_line(const char *s, Request &req) const {
   auto len = strlen(s);
@@ -6476,7 +6509,7 @@ Server::create_server_socket(const std::string &host, int port,
                              SocketOptions socket_options) const {
   return detail::create_socket(
       host, std::string(), port, address_family_, socket_flags, tcp_nodelay_,
-      std::move(socket_options),
+      ipv6_v6only_, std::move(socket_options),
       [](socket_t sock, struct addrinfo &ai, bool & /*quit*/) -> bool {
         if (::bind(sock, ai.ai_addr, static_cast<socklen_t>(ai.ai_addrlen))) {
           return false;
@@ -6488,6 +6521,8 @@ Server::create_server_socket(const std::string &host, int port,
 
 inline int Server::bind_internal(const std::string &host, int port,
                                  int socket_flags) {
+  if (is_decommisioned) { return -1; }
+
   if (!is_valid()) { return -1; }
 
   svr_sock_ = create_server_socket(host, port, socket_flags, socket_options_);
@@ -6513,6 +6548,8 @@ inline int Server::bind_internal(const std::string &host, int port,
 }
 
 inline bool Server::listen_internal() {
+  if (is_decommisioned) { return false; }
+
   auto ret = true;
   is_running_ = true;
   auto se = detail::scope_exit([&]() { is_running_ = false; });
@@ -6602,6 +6639,7 @@ inline bool Server::listen_internal() {
     task_queue->shutdown();
   }
 
+  is_decommisioned = !ret;
   return ret;
 }
 
@@ -7021,6 +7059,7 @@ inline void ClientImpl::copy_settings(const ClientImpl &rhs) {
   url_encode_ = rhs.url_encode_;
   address_family_ = rhs.address_family_;
   tcp_nodelay_ = rhs.tcp_nodelay_;
+  ipv6_v6only_ = rhs.ipv6_v6only_;
   socket_options_ = rhs.socket_options_;
   compress_ = rhs.compress_;
   decompress_ = rhs.decompress_;
@@ -7049,9 +7088,9 @@ inline socket_t ClientImpl::create_client_socket(Error &error) const {
   if (!proxy_host_.empty() && proxy_port_ != -1) {
     return detail::create_client_socket(
         proxy_host_, std::string(), proxy_port_, address_family_, tcp_nodelay_,
-        socket_options_, connection_timeout_sec_, connection_timeout_usec_,
-        read_timeout_sec_, read_timeout_usec_, write_timeout_sec_,
-        write_timeout_usec_, interface_, error);
+        ipv6_v6only_, socket_options_, connection_timeout_sec_,
+        connection_timeout_usec_, read_timeout_sec_, read_timeout_usec_,
+        write_timeout_sec_, write_timeout_usec_, interface_, error);
   }
 
   // Check is custom IP specified for host_
@@ -7060,10 +7099,10 @@ inline socket_t ClientImpl::create_client_socket(Error &error) const {
   if (it != addr_map_.end()) { ip = it->second; }
 
   return detail::create_client_socket(
-      host_, ip, port_, address_family_, tcp_nodelay_, socket_options_,
-      connection_timeout_sec_, connection_timeout_usec_, read_timeout_sec_,
-      read_timeout_usec_, write_timeout_sec_, write_timeout_usec_, interface_,
-      error);
+      host_, ip, port_, address_family_, tcp_nodelay_, ipv6_v6only_,
+      socket_options_, connection_timeout_sec_, connection_timeout_usec_,
+      read_timeout_sec_, read_timeout_usec_, write_timeout_sec_,
+      write_timeout_usec_, interface_, error);
 }
 
 inline bool ClientImpl::create_and_connect_socket(Socket &socket,
@@ -7699,6 +7738,14 @@ inline bool ClientImpl::process_request(Stream &strm, Request &req,
       if (!ret) { error = Error::Canceled; }
       return ret;
     };
+
+    if (res.has_header("Content-Length")) {
+      if (!req.content_receiver) {
+        auto len = std::min<size_t>(res.get_header_value_u64("Content-Length"),
+                                    res.body.max_size());
+        if (len > 0) { res.body.reserve(len); }
+      }
+    }
 
     int dummy_status;
     if (!detail::read_content(strm, res, (std::numeric_limits<size_t>::max)(),
@@ -8458,6 +8505,8 @@ inline void ClientImpl::set_address_family(int family) {
 }
 
 inline void ClientImpl::set_tcp_nodelay(bool on) { tcp_nodelay_ = on; }
+
+inline void ClientImpl::set_ipv6_v6only(bool on) { ipv6_v6only_ = on; }
 
 inline void ClientImpl::set_socket_options(SocketOptions socket_options) {
   socket_options_ = std::move(socket_options);
