@@ -40,8 +40,13 @@ string process_html(string fn,map<string,string> mp){
 string fileserver(string pt,string path){
     string rst="";
     chdir(path.c_str());
-    for (const auto & entry : fs::directory_iterator("."))
-        rst+="<a target=\"_blank\" href=\""+pt+"/"+string(entry.path().filename())+"\">"+string(entry.path().filename())+"</a><br>";
+    for (const auto & entry : fs::directory_iterator(".")){
+        #if defined(_WIN32)||defined(_WIN64)
+            rst+="<a target=\"_blank\" href=\""+pt+"/"+entry.path().filename().string()+"\">"+entry.path().filename().string()+"</a><br>";
+        #else
+            rst+="<a target=\"_blank\" href=\""+pt+"/"+string(entry.path().filename())+"\">"+string(entry.path().filename())+"</a><br>";
+        #endif
+    }
     chdir("..");
     if(rst==""){
         rst="<span>No file exists.</span>";
