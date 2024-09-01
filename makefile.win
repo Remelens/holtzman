@@ -1,6 +1,0 @@
-CPL=g++
-FLAG=-O2 --std=c++17 -Wall -static-libgcc
-
-LIBWINSOCKS_SUPPORT=-lws2_32
-server:server.cpp error.hpp
-	$(CPL) server.cpp -o server $(LIBWINSOCKS_SUPPORT) $(FLAG)
