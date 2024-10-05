@@ -86,7 +86,7 @@ int main(){
         if(a_fname.find("/")!=std::string::npos||a_fname.find("\\")!=std::string::npos){
             m["opinfo"]="Failed to delete '"+a_fname+"'.";
         }else if(fs::exists(file)&&fs::remove(file)){
-            m["opinfo"]="File '"+a_fname+"'deleted.";
+            m["opinfo"]="File '"+a_fname+"' deleted.";
             //success
         }else{
             m["opinfo"]="Failed to delete '"+a_fname+"'.";
