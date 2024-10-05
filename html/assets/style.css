@@ -29,3 +29,14 @@ mdui-divider{
 input[type="file"]::file-selector-button{
     display:none;
 }
+.sidebarlist{
+    margin: 0rem .5rem;
+}
+.listfiles{
+    width:90%;
+    max-width:900px;
+}
+.listfiles mdui-list-item::part(container){
+    min-height:auto;
+    text-align:left;
+}

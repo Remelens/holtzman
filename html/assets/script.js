@@ -18,5 +18,23 @@ window.addEventListener('resize', function(){
     }
 });
 if(window.innerWidth>=840){
-    a.setAttribute("open","");
+    document.getElementById('sidebar').setAttribute("open","");
+}
+const dialog = document.querySelector(".delete-file-action");
+if(dialog){
+    document.querySelector("#del-dia-cancel").addEventListener("click", () => dialog.open = false);
+    document.querySelector("#del-dia-del").addEventListener("click", () => dialog.open = false);
+    const openButton = document.querySelectorAll(".delete-file-btn");
+    openButton.forEach((node)=>{
+        node.addEventListener("click", (event) => {
+            let fname=event.srcElement.parentNode.childNodes[0].textContent;
+            dialog.open = true;
+            document.getElementById('del-file-name').value=fname;
+            dialog.headline="Delete file '"+fname+"'?";
+        });
+    });
+}
+const cdia = document.querySelector(".deleted-dia");
+if(cdia){
+    document.querySelector("#deleted-dia-btn").addEventListener("click", () => cdia.open = false);
 }

@@ -18,8 +18,10 @@
                 <mdui-button-icon type="button" icon="github" id="btn-ms"></mdui-button-icon>
             </mdui-top-app-bar>
             <mdui-navigation-drawer close-on-overlay-click id="sidebar">
-                <mdui-list-item rounded href="/" active>Upload File</mdui-list-item>
-                <mdui-list-item rounded href="/file">All Files</mdui-list-item>
+                <mdui-list class="sidebarlist">
+                    <mdui-list-item rounded href="/" active>Upload File</mdui-list-item>
+                    <mdui-list-item rounded href="/file">All Files</mdui-list-item>
+                </mdui-list>
             </mdui-navigation-drawer>
             <mdui-layout-main>
                 <mdui-card>

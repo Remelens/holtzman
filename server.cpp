@@ -38,20 +38,23 @@ string process_html(string fn,map<string,string> mp){
     return rst;
 }
 string fileserver(string pt,string path){
-    string rst="";
+    string rst="<mdui-list>",tmp;
     chdir(path.c_str());
     for (const auto & entry : fs::directory_iterator(".")){
-        #if defined(_WIN32)||defined(_WIN64)
-            rst+="<a target=\"_blank\" href=\""+pt+"/"+entry.path().filename().string()+"\">"+entry.path().filename().string()+"</a><br>";
-        #else
-            rst+="<a target=\"_blank\" href=\""+pt+"/"+string(entry.path().filename())+"\">"+string(entry.path().filename())+"</a><br>";
-        #endif
+        tmp=string(entry.path().filename());
+        rst+="<mdui-list-item rounded title=\""+tmp+"\">"+tmp+"<mdui-button-icon slot=\"end-icon\" icon=\"link\" target=\"_blank\" href=\""+pt+"/"+tmp+"\"></mdui-button-icon><mdui-button-icon slot=\"end-icon\" icon=\"delete\" class=\"delete-file-btn\"></mdui-button-icon></mdui-list-item>";
     }
+    rst+="</mdui-list>";
     chdir("..");
     if(rst==""){
         rst="<span>No file exists.</span>";
     }
     return rst;
+}
+string del_getfilename(string s){
+    int a=s.find("=");
+    s.erase(0,a+1);
+    return s;
 }
 int main(){
     cout<<"Server listening at port "<<PORT<<endl;
@@ -59,11 +62,11 @@ int main(){
     ecode_init();
     Server svr;
     if (!svr.set_mount_point("/file/","file")) {
-        cout << "The specified base directory 'file' doesn't exist..."<<endl;
+        cerr << "The specified base directory 'file' doesn't exist.\nQuitting..."<<endl;
         return 1;
     }
     if (!svr.set_mount_point("/assets/","html/assets")) {
-        cout << "The specified base directory 'html/assets' doesn't exist..."<<endl;
+        cerr << "The specified base directory 'html/assets' doesn't exist.\nQuitting..."<<endl;
         return 1;
     }
     svr.Get("/", [](const Request &req, Response &res) {
@@ -71,6 +74,25 @@ int main(){
     });
     svr.Get("/file", [](const Request &req, Response &res) {
         map<string,string> m;
+        m["allfiles"]=fileserver("/file","file");
+        m["opinfo"]="";
+        m["script"]="";
+        res.set_content(process_html("html/file.html",m), "text/html;charset=utf-8");
+    });
+    svr.Post("/file", [](const Request &req, Response &res) {
+        map<string,string> m;
+        string a_fname=del_getfilename(req.body);
+        string file="./file/"+a_fname;
+        if(a_fname.find("/")!=std::string::npos||a_fname.find("\\")!=std::string::npos){
+            m["opinfo"]="Failed to delete '"+a_fname+"'.";
+        }else if(fs::exists(file)&&fs::remove(file)){
+            m["opinfo"]="File '"+a_fname+"'deleted.";
+            //success
+        }else{
+            m["opinfo"]="Failed to delete '"+a_fname+"'.";
+            //failed
+        }
+        m["script"]="cdia.open=true";
         m["allfiles"]=fileserver("/file","file");
         res.set_content(process_html("html/file.html",m), "text/html;charset=utf-8");
     });

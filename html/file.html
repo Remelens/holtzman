@@ -18,19 +18,32 @@
                 <mdui-button-icon type="button" icon="github" id="btn-ms"></mdui-button-icon>
             </mdui-top-app-bar>
             <mdui-navigation-drawer close-on-overlay-click id="sidebar">
-                <mdui-list-item rounded href="/">Upload File</mdui-list-item>
-                <mdui-list-item rounded href="/file" active>All Files</mdui-list-item>
+                <mdui-list class="sidebarlist">
+                    <mdui-list-item rounded href="/">Upload File</mdui-list-item>
+                    <mdui-list-item rounded href="/file" active>All Files</mdui-list-item>
+                </mdui-list>
             </mdui-navigation-drawer>
             <mdui-layout-main>
-                <mdui-card>
+                <mdui-card class="listfiles">
                     <h3>All Files</h3>
                     %{allfiles}%
                 </mdui-card>
+                <mdui-dialog close-on-overlay-click headline="Delete this file?" description="This file will be permanently removed from your server." class="delete-file-action">
+                    <form slot="action" id="upload" action="/file" method="post" enctype="multipart/x-www-form-urlencoded">
+                        <mdui-button slot="action" variant="text" id="del-dia-cancel">Cancel</mdui-button>
+                        <mdui-button type="submit" slot="action" variant="tonal" id="del-dia-del">Delete</mdui-button>
+                        <input id="del-file-name" name="filename" type="hidden" value=""><br>
+                    </form>
+                </mdui-dialog>
+                <mdui-dialog close-on-overlay-click headline="%{opinfo}%" class="deleted-dia">
+                        <mdui-button slot="action" variant="tonal" id="deleted-dia-btn">OK</mdui-button>
+                </mdui-dialog>
             </mdui-layout-main>
             <mdui-bottom-app-bar>
                 Holtzman Server
             </mdui-bottom-app-bar>
         </mdui-layout>
         <script src="./assets/script.js"></script>
+        <script>%{script}%</script>
     </body>
 </html>
