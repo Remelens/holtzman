@@ -25,6 +25,26 @@ string replace_str(string s,string be_repl,string repled){
     }
     return s;
 }
+string decodeURI(const string &src) {
+    string decoded;
+    for (size_t i = 0; i < src.length(); ++i) {
+        if (src[i] == '%') {
+            if (i + 2 < src.length()) {
+                std::string hex = src.substr(i + 1, 2);
+                char decodedChar = static_cast<char>(std::stoi(hex, nullptr, 16));
+                decoded += decodedChar;
+                i += 2;
+            } else {
+                decoded += '%';
+            }
+        } else if (src[i] == '+') {
+            decoded += ' ';
+        } else {
+            decoded += src[i];
+        }
+    }
+    return decoded;
+}
 string process_html(string fn,map<string,string> mp){
     ifstream fin (fn.c_str());
     string s,rst;
@@ -81,7 +101,7 @@ int main(){
     });
     svr.Post("/file", [](const Request &req, Response &res) {
         map<string,string> m;
-        string a_fname=del_getfilename(req.body);
+        string a_fname=decodeURI(del_getfilename(req.body));
         string file="./file/"+a_fname;
         if(a_fname.find("/")!=std::string::npos||a_fname.find("\\")!=std::string::npos){
             m["opinfo"]="Failed to delete '"+a_fname+"'.";
