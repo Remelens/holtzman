@@ -61,7 +61,7 @@ string fileserver(string pt,string path){
     string rst="<mdui-list>",tmp;
     chdir(path.c_str());
     for (const auto & entry : fs::directory_iterator(".")){
-        tmp=string(entry.path().filename());
+        tmp=entry.path().filename().string();
         rst+="<mdui-list-item rounded title=\""+tmp+"\">"+tmp+"<mdui-button-icon slot=\"end-icon\" icon=\"link\" target=\"_blank\" href=\""+pt+"/"+tmp+"\"></mdui-button-icon><mdui-button-icon slot=\"end-icon\" icon=\"delete\" class=\"delete-file-btn\"></mdui-button-icon></mdui-list-item>";
     }
     rst+="</mdui-list>";
